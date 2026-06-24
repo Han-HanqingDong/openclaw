@@ -12,7 +12,44 @@ mkdir -p "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_WORKSPACE_DIR" "$OPENCLAW_AUTH_PROFIL
 
 echo "Preparing OpenClaw Railway runtime config..."
 node openclaw.mjs setup --workspace "$OPENCLAW_WORKSPACE_DIR" >/dev/null
-node openclaw.mjs config set --batch-json '[{"path":"gateway.bind","value":"lan"}]' >/dev/null
+
+origins=()
+add_origin() {
+  local origin="${1:-}"
+  origin="${origin%/}"
+  [[ -z "$origin" ]] && return
+  for existing in "${origins[@]}"; do
+    [[ "$existing" == "$origin" ]] && return
+  done
+  origins+=("$origin")
+}
+add_railway_origin() {
+  local raw="${1:-}"
+  raw="${raw%/}"
+  [[ -z "$raw" ]] && return
+  if [[ "$raw" == http://* || "$raw" == https://* ]]; then
+    add_origin "$raw"
+  else
+    add_origin "https://$raw"
+  fi
+}
+
+add_origin "http://localhost:$PORT"
+add_origin "http://127.0.0.1:$PORT"
+add_railway_origin "${RAILWAY_PUBLIC_DOMAIN:-}"
+add_railway_origin "${RAILWAY_STATIC_URL:-}"
+add_railway_origin "${RAILWAY_SERVICE_OPENCLAW_URL:-}"
+
+batch_json="$(
+  node - "${origins[@]}" <<'NODE'
+const origins = process.argv.slice(2);
+process.stdout.write(JSON.stringify([
+  { path: "gateway.bind", value: "lan" },
+  { path: "gateway.controlUi.allowedOrigins", value: origins },
+]));
+NODE
+)"
+node openclaw.mjs config set --batch-json "$batch_json" >/dev/null
 
 auth_args=()
 if [[ -n "${OPENCLAW_GATEWAY_TOKEN:-}" ]]; then
