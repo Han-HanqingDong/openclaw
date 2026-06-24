@@ -1,0 +1,10 @@
+providers = ["node"]
+
+[phases.setup]
+aptPkgs = ["...", "python3", "make", "g++", "git", "curl", "ca-certificates", "lsof", "openssl", "procps"]
+
+[phases.build]
+cmds = ["pnpm_config_verify_deps_before_run=false pnpm canvas:a2ui:bundle || (mkdir -p extensions/canvas/src/host/a2ui && printf '/* A2UI bundle unavailable in this build */\\n' > extensions/canvas/src/host/a2ui/a2ui.bundle.js && printf 'stub\\n' > extensions/canvas/src/host/a2ui/.bundle.hash && rm -rf vendor/a2ui apps/shared/OpenClawKit/Tools/CanvasA2UI); NODE_OPTIONS=--max-old-space-size=8192 pnpm_config_verify_deps_before_run=false pnpm build:docker && OPENCLAW_PREFER_PNPM=1 pnpm_config_verify_deps_before_run=false pnpm ui:build"]
+
+[start]
+cmd = "node openclaw.mjs gateway --bind lan --port ${PORT}"
